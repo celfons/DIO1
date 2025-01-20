@@ -1,0 +1,52 @@
+trigger:
+  branches:
+    include:
+      - main  # Define o branch que dispara o pipeline
+
+pool:
+  vmImage: 'ubuntu-latest'  # Máquina para execução do pipeline
+
+variables:
+  # Nome do App Service no Azure
+  appName: "MyApiApp"
+  # Grupo de recursos no Azure
+  resourceGroup: "MyResourceGroup"
+  # Caminho de publicação
+  publishDirectory: $(System.DefaultWorkingDirectory)/publish
+
+steps:
+  # 1. Restaurar dependências
+  - task: UseDotNet@2
+    inputs:
+      packageType: 'sdk'
+      version: '6.x'  # Define a versão do .NET SDK
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Restore dependencies'
+    inputs:
+      command: restore
+      projects: '**/*.csproj'
+
+  # 2. Build do projeto
+  - task: DotNetCoreCLI@2
+    displayName: 'Build solution'
+    inputs:
+      command: build
+      projects: '**/*.csproj'
+      arguments: '--configuration Release'
+
+  # 3. Publicar o build
+  - task: DotNetCoreCLI@2
+    displayName: 'Publish solution'
+    inputs:
+      command: publish
+      projects: '**/*.csproj'
+      arguments: '--configuration Release --output $(publishDirectory)'
+
+  # 4. Fazer o deploy para o Azure App Service
+  - task: AzureWebApp@1
+    displayName: 'Deploy to Azure App Service'
+    inputs:
+      azureSubscription: '<Service Connection Name>'  # Nome do Service Connection configurado no Azure DevOps
+      appName: $(appName)
+      package: $(publishDirectory)
